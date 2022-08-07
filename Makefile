@@ -11,5 +11,5 @@ down:
 run:
 	@echo "Running application ..."
 	go mod tidy
-	go run cmd/main.go
+	go run main.go
 	@echo "Application started"

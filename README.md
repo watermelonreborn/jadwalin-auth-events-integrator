@@ -7,7 +7,7 @@
 
 ## Using the application
 1. docker compose up -d 
-2. go run cmd/main.go
+2. go run main.go
 3. docker compose down (if u need to stop the container)
 
 ##### If you have make command in your computer
@@ -15,7 +15,7 @@
 2. make run
 3. make down
 
-## default config.json
+## Default config.json
 ```
 {
   "server": {
@@ -31,5 +31,27 @@
     "password": "bantengmerah",
     "db": 0
   }
+}
+```
+
+## Debugging mode purpose in VSCODE (.vscode/launch.json)
+```
+{
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Application",
+      "type": "go",
+      "request": "launch",
+      "mode": "debug",
+      "program": "${workspaceFolder}",
+      "args": [
+        "run"
+      ]
+    }
+  ]
 }
 ```
