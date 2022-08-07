@@ -19,7 +19,7 @@ func NewMongo(config *config.Config, logger log.Logger) (*mongo.Database, error)
 	clientOptions := options.Client()
 	clientOptions.ApplyURI(config.Database.ConnectionString)
 
-	if config.Database.Username != "" && config.Database.Password != "" {
+	if credential.Username != "" && credential.Password != "" {
 		clientOptions.SetAuth(credential)
 	}
 
