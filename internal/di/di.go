@@ -21,6 +21,14 @@ func init() {
 		panic(err)
 	}
 
+	if err := Container.Provide(NewMongo); err != nil {
+		panic(err)
+	}
+
+	if err := Container.Provide(NewRedis); err != nil {
+		panic(err)
+	}
+
 	// TODO: Add another providers
 
 	if err := Container.Provide(NewEcho); err != nil {

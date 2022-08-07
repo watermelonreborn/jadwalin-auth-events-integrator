@@ -26,10 +26,17 @@ func (service *testService) Index(c echo.Context, request dto.TestRequest) (dto.
 		response = dto.TestResponse{}
 	)
 
-	response.Message = fmt.Sprintf("Hello %s!", request.Name)
+	err := service.repository.Test.IndexDB(entity.Test{Name: request.Name})
+	if err != nil {
+		return response, err
+	}
 
-	//TODO: Calling the db using
-	service.repository.Test.Index(entity.Test{Name: request.Name})
+	err = service.repository.Test.IndexRedis(request.Name)
+	if err != nil {
+		return response, err
+	}
+
+	response.Message = fmt.Sprintf("Hello %s!", request.Name)
 
 	return response, nil
 }

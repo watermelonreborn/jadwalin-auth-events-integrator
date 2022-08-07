@@ -6,12 +6,14 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
+	log "github.com/sirupsen/logrus"
 	"go.uber.org/dig"
 )
 
 type Test struct {
 	dig.In
 	Service service.Holder
+	Logger  log.Logger
 }
 
 func (controller *Test) Index(c echo.Context) error {
@@ -20,6 +22,7 @@ func (controller *Test) Index(c echo.Context) error {
 	)
 
 	if err := c.Bind(&request); err != nil {
+		controller.Logger.Errorf("Error binding request: %s", err)
 		return c.JSON(http.StatusBadRequest, err)
 	}
 
