@@ -38,5 +38,5 @@ func NewMongo(config *config.Config, logger log.Logger) (*mongo.Database, error)
 		return nil, err
 	}
 
-	return client.Database("jadwalin"), nil
+	return client.Database(config.Database.Name), nil
 }

@@ -4,6 +4,7 @@ import "github.com/spf13/viper"
 
 type MongoConfig struct {
 	ConnectionString string
+	Name             string
 	Username         string
 	Password         string
 }
@@ -37,6 +38,7 @@ func NewConfig() (*Config, error) {
 
 	config.HTTPServerPort = viper.GetInt("server.port")
 	config.Database.ConnectionString = viper.GetString("database.connection_string")
+	config.Database.Name = viper.GetString("database.name")
 	config.Database.Username = viper.GetString("database.username")
 	config.Database.Password = viper.GetString("database.password")
 	config.Cache.Host = viper.GetString("cache.host")
