@@ -17,7 +17,7 @@ type RedisConfig struct {
 type Config struct {
 	HTTPServerPort int
 	Database       MongoConfig
-	Redis          RedisConfig
+	Cache          RedisConfig
 	//TODO: Add another config fields
 }
 
@@ -39,9 +39,9 @@ func NewConfig() (*Config, error) {
 	config.Database.ConnectionString = viper.GetString("database.connection_string")
 	config.Database.Username = viper.GetString("database.username")
 	config.Database.Password = viper.GetString("database.password")
-	config.Redis.Host = viper.GetString("redis.host")
-	config.Redis.Password = viper.GetString("redis.password")
-	config.Redis.Database = viper.GetInt("redis.database")
+	config.Cache.Host = viper.GetString("cache.host")
+	config.Cache.Password = viper.GetString("cache.password")
+	config.Cache.Database = viper.GetInt("cache.database")
 
 	//TODO: Add another config setups
 

@@ -8,8 +8,8 @@ import (
 
 func NewRedis(config *config.Config) *redis.Client {
 	return redis.NewClient(&redis.Options{
-		Addr:     config.Redis.Host,
-		Password: config.Redis.Password,
-		DB:       config.Redis.Database,
+		Addr:     config.Cache.Host,
+		Password: config.Cache.Password,
+		DB:       config.Cache.Database,
 	})
 }
