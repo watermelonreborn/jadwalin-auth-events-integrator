@@ -8,8 +8,9 @@
 ## Using the application
 1. docker compose up -d 
 2. go mod tidy
-3. go run main.go
-4. docker compose down (if u need to stop the container)
+3. Don't forget to copy config.json below to local project folder
+4. go run main.go
+5. docker compose down (if u need to stop the container)
 
 ##### If you have make command in your computer
 1. make up
