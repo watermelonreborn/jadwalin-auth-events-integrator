@@ -6,24 +6,34 @@ import (
 	"fmt"
 	"io/ioutil"
 	"jadwalin-auth-events-integrator/internal/repository"
-	"os"
+	"jadwalin-auth-events-integrator/internal/shared/dto"
+	"net/http"
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/calendar/v3"
 
+	"github.com/gorilla/sessions"
 	"github.com/labstack/echo/v4"
 	log "github.com/sirupsen/logrus"
 )
 
+const (
+	SESSION_ID         = "jadwalin-session-id"
+	OAUTH_STATE_STRING = "state-token"
+)
+
 var (
+	store  *sessions.CookieStore
 	config *oauth2.Config
 )
 
 type (
 	Auth interface {
-		IndexAuth(echo.Context) (string, error)
-		ManageAPICode(echo.Context, string) error
+		URL() string
+		GenerateToken(echo.Context, string, string) error
+		GetToken(echo.Context) (dto.TokenResponse, error)
+		GetUserInfo(string) (dto.UserInfoResponse, error)
 	}
 
 	authService struct {
@@ -32,107 +42,118 @@ type (
 	}
 )
 
-// Request a token from the web, then returns the retrieved token.
-func getTokenFromWeb(config *oauth2.Config) *oauth2.Token {
-	var authCode string
-	if _, err := fmt.Scan(&authCode); err != nil {
-		log.Fatalf("Unable to read authorization code: %v", err)
+func init() {
+	bytes, err := ioutil.ReadFile("credentials.json")
+	if err != nil {
+		log.Fatalf("Unable to read client secret file: %v", err)
+		panic(err)
 	}
 
-	tok, err := config.Exchange(context.TODO(), authCode)
+	config, err = google.ConfigFromJSON(bytes, "https://www.googleapis.com/auth/userinfo.email", calendar.CalendarScope)
 	if err != nil {
-		log.Fatalf("Unable to retrieve token from web: %v", err)
+		log.Fatalf("Unable to parse client secret file to config: %v", err)
+		panic(err)
 	}
-	return tok
+
+	store = newCookieStore()
 }
 
-// Retrieves a token from a local file.
-func tokenFromFile(file string) (*oauth2.Token, error) {
-	f, err := os.Open(file)
-	if err != nil {
-		return nil, err
+func newCookieStore() *sessions.CookieStore {
+	authKey := []byte("my-auth-key-very-secret")
+	encryptKey := []byte("my-encryption-key-very-secret123")
+	store := sessions.NewCookieStore(authKey, encryptKey)
+	store.Options = &sessions.Options{
+		Path:     "/",
+		MaxAge:   86400 * 7,
+		HttpOnly: true,
 	}
-	defer f.Close()
-	tok := &oauth2.Token{}
-	err = json.NewDecoder(f).Decode(tok)
-	return tok, err
+
+	return store
 }
 
-// Saves a token to a file path.
-func saveToken(path string, token *oauth2.Token) {
-	fmt.Printf("Saving credential file to: %s\n", path)
-	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
-	if err != nil {
-		log.Fatalf("Unable to cache oauth token: %v", err)
-	}
-	defer f.Close()
-	json.NewEncoder(f).Encode(token)
+func (service *authService) URL() string {
+	return config.AuthCodeURL(OAUTH_STATE_STRING, oauth2.AccessTypeOffline)
 }
 
-func (service *authService) IndexAuth(c echo.Context) (string, error) {
-	b, err := ioutil.ReadFile("credentials.json")
-	if err != nil {
-		service.logger.Errorf("Unable to read client secret file: %v", err)
-		return "", err
+func (service *authService) GenerateToken(c echo.Context, state string, code string) error {
+	if state != OAUTH_STATE_STRING {
+		return fmt.Errorf("invalid oauth state")
 	}
 
-	config, err = google.ConfigFromJSON(b, calendar.CalendarReadonlyScope)
+	token, err := config.Exchange(context.Background(), code)
 	if err != nil {
-		service.logger.Errorf("Unable to parse client secret file to config: %v", err)
-		return "", err
+		return fmt.Errorf("code exchange failed: %s", err.Error())
 	}
 
-	// tokFile := "token.json"
-	// tok, err := tokenFromFile(tokFile)
-	// service.logger.Info(authURL)
+	service.logger.Info(token.AccessToken)
+	service.logger.Info(token.RefreshToken)
 
-	// if err != nil {
-	// 	service.logger.Info("dlm if sebelum redirect")
-	// 	return authURL, nil
-	// service.logger.Info("dlm if setelah redirect")
-	// tok = getTokenFromWeb(config)
-	// saveToken(tokFile, tok)
-	// }
-
-	authURL := config.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
-	return authURL, nil
-}
-
-func (service *authService) ManageAPICode(c echo.Context, authCode string) error {
-	tok, err := config.Exchange(context.TODO(), authCode)
+	session, err := store.Get(c.Request(), SESSION_ID)
 	if err != nil {
-		log.Fatalf("Unable to retrieve token from web: %v", err)
+		return fmt.Errorf("failed to get session: %s", err.Error())
 	}
 
-	// ctx := context.Background()
+	session.Values["token"] = token.AccessToken
+	session.Values["refresh"] = token.RefreshToken
+	session.Values["expiry"] = token.Expiry.Unix()
 
-	// client := config.Client(ctx, tok)
-
-	// srv, err := calendar.NewService(ctx, option.WithHTTPClient(client))
-	// if err != nil {
-	// 	log.Fatalf("Unable to retrieve Calendar client: %v", err)
-	// }
-
-	// t := time.Now().Format(time.RFC3339)
-	// events, err := srv.Events.List("primary").ShowDeleted(false).
-	// 	SingleEvents(true).TimeMin(t).MaxResults(10).OrderBy("startTime").Do()
-	// if err != nil {
-	// 	log.Fatalf("Unable to retrieve next ten of the user's events: %v", err)
-	// }
-	// fmt.Println("Upcoming events:")
-	// if len(events.Items) == 0 {
-	// 	fmt.Println("No upcoming events found.")
-	// } else {
-	// 	for _, item := range events.Items {
-	// 		date := item.Start.DateTime
-	// 		if date == "" {
-	// 			date = item.Start.Date
-	// 		}
-	// 		fmt.Printf("%v (%v)\n", item.Summary, date)
-	// 	}
-	// }
+	if err := session.Save(c.Request(), c.Response()); err != nil {
+		return fmt.Errorf("failed to save session: %s", err.Error())
+	}
 
 	return nil
+}
+
+func (service *authService) GetToken(c echo.Context) (dto.TokenResponse, error) {
+	session, err := store.Get(c.Request(), SESSION_ID)
+	if err != nil {
+		return dto.TokenResponse{}, fmt.Errorf("failed to get session: %s", err.Error())
+	}
+
+	if len(session.Values) == 0 {
+		return dto.TokenResponse{}, fmt.Errorf("no session")
+	}
+
+	token := session.Values["token"].(string)
+	refresh := session.Values["refresh"].(string)
+	expiry := session.Values["expiry"].(int64)
+
+	return dto.TokenResponse{
+		AccessToken:  token,
+		RefreshToken: refresh,
+		Expiry:       expiry,
+	}, nil
+}
+
+func (service *authService) GetUserInfo(accessToken string) (dto.UserInfoResponse, error) {
+	var (
+		userInfoResponse dto.UserInfoResponse
+	)
+
+	response, err := http.Get("https://www.googleapis.com/oauth2/v2/userinfo?access_token=" + accessToken)
+	if err != nil {
+		return dto.UserInfoResponse{}, fmt.Errorf("failed to get user info: %s", err.Error())
+	}
+
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		return dto.UserInfoResponse{}, fmt.Errorf("failed to get user info: %s", response.Status)
+	}
+
+	bodyBytes, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return dto.UserInfoResponse{}, fmt.Errorf("failed to read user info: %s", err.Error())
+	}
+
+	service.logger.Info(string(bodyBytes))
+
+	if err := json.Unmarshal(bodyBytes, &userInfoResponse); err != nil {
+		return dto.UserInfoResponse{}, fmt.Errorf("failed to unmarshal user info: %s", err.Error())
+	}
+
+	return userInfoResponse, nil
+
 }
 
 func OAuth(logger log.Logger, repo repository.Holder) (Auth, error) {

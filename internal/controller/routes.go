@@ -20,9 +20,9 @@ func (impl *Holder) RegisterRoutes() {
 	app.Use(middleware.Recover())
 	app.Use(middleware.CORS())
 
-	// app.POST("/", impl.Test.Index)
-	app.GET("/auth", impl.Auth.IndexAuth)
-	app.GET("/", impl.Auth.ParsingCode)
-
-	//TODO: Add other routes
+	app.POST("/", impl.Test.Index)
+	app.GET("/auth", impl.Auth.handleAuth)
+	app.GET("/callback", impl.Auth.handleAuthCallback)
+	app.GET("/token", impl.Auth.handleToken)
+	app.POST("/userinfo", impl.Auth.handleUserInfo)
 }

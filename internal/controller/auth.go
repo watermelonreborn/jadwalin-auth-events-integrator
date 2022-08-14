@@ -2,6 +2,7 @@ package controller
 
 import (
 	"jadwalin-auth-events-integrator/internal/service"
+	"jadwalin-auth-events-integrator/internal/shared/dto"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -15,25 +16,76 @@ type Auth struct {
 	Logger  log.Logger
 }
 
-func (controller *Auth) IndexAuth(c echo.Context) error {
-
-	controller.Logger.Info("masuk controller")
-	// return c.Redirect(301, "https://accounts.google.com/o/oauth2/auth?access_type=offline\u0026client_id=304586193738-vfrl77vb8laoqh738tqku7fepfp5mi5c.apps.googleusercontent.com\u0026redirect_uri=http%3A%2F%2Flocalhost%3A8080%2F\u0026response_type=code\u0026scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcalendar.readonly\u0026state=state-token")
-	url, err := controller.Service.Auth.IndexAuth(c)
-	controller.Logger.Info("setelah service")
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, err)
-	}
-
-	// if err := c.Redirect(301, url); err != nil {
-	// 	return c.JSON(http.StatusInternalServerError, err)
-	// }
-	return c.Redirect(301, url)
+func (impl *Auth) handleAuth(c echo.Context) error {
+	url := impl.Service.Auth.URL()
+	impl.Logger.Info("Auth URL Generated: ", url)
+	return c.Redirect(http.StatusTemporaryRedirect, url)
 }
 
-func (controller *Auth) ParsingCode(c echo.Context) error {
-	code := c.QueryParams().Get("code")
-	controller.Logger.Info(code)
+func (impl *Auth) handleAuthCallback(c echo.Context) error {
+	state := c.QueryParam("state")
+	code := c.QueryParam("code")
 
-	return c.JSON(http.StatusOK, nil)
+	impl.Logger.Info("Auth Callback: ", state, code)
+
+	err := impl.Service.Auth.GenerateToken(c, state, code)
+	if err != nil {
+		impl.Logger.Error(err)
+		return c.JSON(http.StatusInternalServerError, dto.Response{
+			Status: http.StatusInternalServerError,
+			Error:  err.Error(),
+		})
+	}
+
+	impl.Logger.Info("Auth Token Generated and saved to the session")
+
+	return c.JSON(http.StatusOK, dto.Response{Status: http.StatusOK})
+}
+
+func (impl *Auth) handleToken(c echo.Context) error {
+	response, err := impl.Service.Auth.GetToken(c)
+	if err != nil {
+		impl.Logger.Error(err)
+		return c.JSON(http.StatusInternalServerError, dto.Response{
+			Status: http.StatusInternalServerError,
+			Error:  err.Error(),
+		})
+	}
+
+	impl.Logger.Info("Got the token from the session")
+
+	return c.JSON(http.StatusOK, dto.Response{
+		Status: http.StatusOK,
+		Data:   response,
+	})
+}
+
+func (impl *Auth) handleUserInfo(c echo.Context) error {
+	var (
+		request = dto.UserInfoRequest{}
+	)
+
+	if err := c.Bind(&request); err != nil {
+		impl.Logger.Errorf("Error binding request: %s", err)
+		return c.JSON(http.StatusBadRequest, dto.Response{
+			Status: http.StatusBadRequest,
+			Error:  err.Error(),
+		})
+	}
+
+	response, err := impl.Service.Auth.GetUserInfo(request.Token)
+	if err != nil {
+		impl.Logger.Error(err)
+		return c.JSON(http.StatusInternalServerError, dto.Response{
+			Status: http.StatusInternalServerError,
+			Error:  err.Error(),
+		})
+	}
+
+	impl.Logger.Info("Got the user info from the token")
+
+	return c.JSON(http.StatusOK, dto.Response{
+		Status: http.StatusOK,
+		Data:   response,
+	})
 }
