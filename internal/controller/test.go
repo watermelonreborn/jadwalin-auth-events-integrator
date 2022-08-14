@@ -20,7 +20,7 @@ func (controller *Test) Index(c echo.Context) error {
 	var (
 		request = dto.TestRequest{}
 	)
-
+	controller.Logger.Info("masuk controller test")
 	if err := c.Bind(&request); err != nil {
 		controller.Logger.Errorf("Error binding request: %s", err)
 		return c.JSON(http.StatusBadRequest, err)

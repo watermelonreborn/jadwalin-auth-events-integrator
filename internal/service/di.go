@@ -7,8 +7,7 @@ import (
 type Holder struct {
 	dig.In
 	Test Test
-
-	//TODO: Add other services
+	Auth Auth
 }
 
 func Register(container *dig.Container) error {
@@ -16,7 +15,9 @@ func Register(container *dig.Container) error {
 		return err
 	}
 
-	// TODO: Add another service providers
+	if err := container.Provide(OAuth); err != nil {
+		return err
+	}
 
 	return nil
 }

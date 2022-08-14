@@ -11,6 +11,7 @@ type Holder struct {
 	dig.In
 	Dependencies shared.Dependencies
 	Test         Test
+	Auth         Auth
 }
 
 func (impl *Holder) RegisterRoutes() {
@@ -20,6 +21,8 @@ func (impl *Holder) RegisterRoutes() {
 	app.Use(middleware.CORS())
 
 	app.POST("/", impl.Test.Index)
-
-	//TODO: Add other routes
+	app.GET("/auth", impl.Auth.handleAuth)
+	app.GET("/callback", impl.Auth.handleAuthCallback)
+	app.GET("/token", impl.Auth.handleToken)
+	app.POST("/userinfo", impl.Auth.handleUserInfo)
 }
