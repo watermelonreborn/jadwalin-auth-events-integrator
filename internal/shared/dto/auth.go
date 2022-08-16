@@ -10,7 +10,3 @@ type UserInfoResponse struct {
 	ID    string `json:"id"`
 	Email string `json:"email"`
 }
-
-type UserInfoRequest struct {
-	Token string `json:"token"`
-}
