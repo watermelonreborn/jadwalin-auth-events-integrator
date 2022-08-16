@@ -15,6 +15,11 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - name: Configuration files
+        run: |
+          echo -e "${{ secrets.CONFIG }}" >> config.json
+          echo -e "${{ secrets.CREDENTIALS }}" >> credentials.json
+
       # Connect to GCP with Service Account
       - name: Auth to GCP
         uses: 'google-github-actions/auth@v0'
