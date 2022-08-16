@@ -28,7 +28,7 @@ func (impl *Auth) handleAuthCallback(c echo.Context) error {
 
 	impl.Logger.Info("Auth Callback: ", state, code)
 
-	err := impl.Service.Auth.GenerateToken(c, state, code)
+	token, err := impl.Service.Auth.GenerateToken(state, code)
 	if err != nil {
 		impl.Logger.Error(err)
 		return c.JSON(http.StatusInternalServerError, dto.Response{
@@ -37,26 +37,11 @@ func (impl *Auth) handleAuthCallback(c echo.Context) error {
 		})
 	}
 
-	impl.Logger.Info("Auth Token Generated and saved to the session")
-
-	return c.JSON(http.StatusOK, dto.Response{Status: http.StatusOK})
-}
-
-func (impl *Auth) handleToken(c echo.Context) error {
-	response, err := impl.Service.Auth.GetToken(c)
-	if err != nil {
-		impl.Logger.Error(err)
-		return c.JSON(http.StatusInternalServerError, dto.Response{
-			Status: http.StatusInternalServerError,
-			Error:  err.Error(),
-		})
-	}
-
-	impl.Logger.Info("Got the token from the session")
+	impl.Logger.Info("Auth Token Generated")
 
 	return c.JSON(http.StatusOK, dto.Response{
 		Status: http.StatusOK,
-		Data:   response,
+		Data:   token,
 	})
 }
 

@@ -23,6 +23,5 @@ func (impl *Holder) RegisterRoutes() {
 	app.POST("/", impl.Test.Index)
 	app.GET("/auth", impl.Auth.handleAuth)
 	app.GET("/callback", impl.Auth.handleAuthCallback)
-	app.GET("/token", impl.Auth.handleToken)
 	app.POST("/userinfo", impl.Auth.handleUserInfo)
 }
