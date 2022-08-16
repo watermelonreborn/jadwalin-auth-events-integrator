@@ -14,7 +14,6 @@ import (
 	"google.golang.org/api/calendar/v3"
 
 	"github.com/gorilla/sessions"
-	"github.com/labstack/echo/v4"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -31,8 +30,7 @@ var (
 type (
 	Auth interface {
 		URL() string
-		GenerateToken(echo.Context, string, string) error
-		GetToken(echo.Context) (dto.TokenResponse, error)
+		GenerateToken(string, string) (dto.TokenResponse, error)
 		GetUserInfo(string) (dto.UserInfoResponse, error)
 	}
 
@@ -75,53 +73,23 @@ func (service *authService) URL() string {
 	return config.AuthCodeURL(OAUTH_STATE_STRING, oauth2.AccessTypeOffline)
 }
 
-func (service *authService) GenerateToken(c echo.Context, state string, code string) error {
+func (service *authService) GenerateToken(state string, code string) (dto.TokenResponse, error) {
 	if state != OAUTH_STATE_STRING {
-		return fmt.Errorf("invalid oauth state")
+		return dto.TokenResponse{}, fmt.Errorf("invalid oauth state")
 	}
 
 	token, err := config.Exchange(context.Background(), code)
 	if err != nil {
-		return fmt.Errorf("code exchange failed: %s", err.Error())
+		return dto.TokenResponse{}, fmt.Errorf("code exchange failed: %s", err.Error())
 	}
 
 	service.logger.Info(token.AccessToken)
 	service.logger.Info(token.RefreshToken)
 
-	session, err := store.Get(c.Request(), SESSION_ID)
-	if err != nil {
-		return fmt.Errorf("failed to get session: %s", err.Error())
-	}
-
-	session.Values["token"] = token.AccessToken
-	session.Values["refresh"] = token.RefreshToken
-	session.Values["expiry"] = token.Expiry.Unix()
-
-	if err := session.Save(c.Request(), c.Response()); err != nil {
-		return fmt.Errorf("failed to save session: %s", err.Error())
-	}
-
-	return nil
-}
-
-func (service *authService) GetToken(c echo.Context) (dto.TokenResponse, error) {
-	session, err := store.Get(c.Request(), SESSION_ID)
-	if err != nil {
-		return dto.TokenResponse{}, fmt.Errorf("failed to get session: %s", err.Error())
-	}
-
-	if len(session.Values) == 0 {
-		return dto.TokenResponse{}, fmt.Errorf("no session")
-	}
-
-	token := session.Values["token"].(string)
-	refresh := session.Values["refresh"].(string)
-	expiry := session.Values["expiry"].(int64)
-
 	return dto.TokenResponse{
-		AccessToken:  token,
-		RefreshToken: refresh,
-		Expiry:       expiry,
+		AccessToken:  token.AccessToken,
+		RefreshToken: token.RefreshToken,
+		Expiry:       token.Expiry.Unix(),
 	}, nil
 }
 
