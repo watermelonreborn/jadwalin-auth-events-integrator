@@ -46,19 +46,17 @@ func (impl *Auth) handleAuthCallback(c echo.Context) error {
 }
 
 func (impl *Auth) handleUserInfo(c echo.Context) error {
-	var (
-		request = dto.UserInfoRequest{}
-	)
+	var token = c.Request().Header.Get("token")
 
-	if err := c.Bind(&request); err != nil {
-		impl.Logger.Errorf("Error binding request: %s", err)
+	if token == "" {
+		impl.Logger.Errorf("Error request: Token hasn't found on request header")
 		return c.JSON(http.StatusBadRequest, dto.Response{
 			Status: http.StatusBadRequest,
-			Error:  err.Error(),
+			Error:  "Error request: Token hasn't found on request header",
 		})
 	}
 
-	response, err := impl.Service.Auth.GetUserInfo(request.Token)
+	response, err := impl.Service.Auth.GetUserInfo(token)
 	if err != nil {
 		impl.Logger.Error(err)
 		return c.JSON(http.StatusInternalServerError, dto.Response{
