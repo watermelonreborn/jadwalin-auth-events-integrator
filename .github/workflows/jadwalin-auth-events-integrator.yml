@@ -17,9 +17,9 @@ jobs:
 
       - name: Configuration files
         run: |
-          echo -e "${{ secrets.CONFIG }}" >> config.json
-          echo -e "${{ secrets.CREDENTIALS }}" >> credentials.json
-          echo "Check file directory #1"
+          echo -e '${{ secrets.CONFIG }}' >> config.json
+          echo -e '${{ secrets.CREDENTIALS }}' >> credentials.json
+          echo 'Check file directory #1'
           ls -la
 
       # Connect to GCP with Service Account
@@ -34,7 +34,7 @@ jobs:
       # Build the Docker image
       - name: Build & Publish
         run: |
-          echo "Check file directory #2"
+          echo 'Check file directory #2'
           ls -la
           gcloud builds submit --tag gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE }}:${{ github.sha }}
 
