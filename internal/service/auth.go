@@ -13,7 +13,6 @@ import (
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/calendar/v3"
 
-	"github.com/gorilla/sessions"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -23,7 +22,6 @@ const (
 )
 
 var (
-	store  *sessions.CookieStore
 	config *oauth2.Config
 )
 
@@ -52,21 +50,6 @@ func init() {
 		log.Fatalf("Unable to parse client secret file to config: %v", err)
 		panic(err)
 	}
-
-	store = newCookieStore()
-}
-
-func newCookieStore() *sessions.CookieStore {
-	authKey := []byte("my-auth-key-very-secret")
-	encryptKey := []byte("my-encryption-key-very-secret123")
-	store := sessions.NewCookieStore(authKey, encryptKey)
-	store.Options = &sessions.Options{
-		Path:     "/",
-		MaxAge:   86400 * 7,
-		HttpOnly: true,
-	}
-
-	return store
 }
 
 func (service *authService) URL() string {
