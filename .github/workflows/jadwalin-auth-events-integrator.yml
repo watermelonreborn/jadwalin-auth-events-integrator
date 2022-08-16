@@ -1,0 +1,38 @@
+name: jadwalin-auth-events-integrator-server-cloudrun-deploy
+on:
+  push:
+    branches:
+      - main
+
+env:
+  PROJECT_ID: jadwal-in
+  SERVICE: jadwalin-auth-events-integrator
+  REGION: us-central1
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      # Connect to GCP with Service Account
+      - name: Auth to GCP
+        uses: 'google-github-actions/auth@v0'
+        with:
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
+
+      # Setup gcloud CLI
+      - uses: google-github-actions/setup-gcloud@v0
+        
+      # Build the Docker image
+      - name: Build & Publish
+        run: |
+          gcloud builds submit --tag gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE }}:${{ github.sha }}
+
+      # Deploy to Cloud Run
+      - name: Deploy to Cloud Run
+        uses: 'google-github-actions/deploy-cloudrun@v0'
+        with:
+          service: '${{ env.SERVICE }}'
+          image: 'gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE }}:${{ github.sha }}'
+          region: '${{ env.REGION }}'
