@@ -1,0 +1,9 @@
+# Exclude locally vendored dependencies.
+vendor/
+
+# Exclude git history and configuration.
+.gitignore
+
+# Others
+.github
+docker-compose.yml
