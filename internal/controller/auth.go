@@ -5,6 +5,8 @@ import (
 	"jadwalin-auth-events-integrator/internal/shared/dto"
 	"net/http"
 
+	"strings"
+
 	"github.com/labstack/echo/v4"
 	log "github.com/sirupsen/logrus"
 	"go.uber.org/dig"
@@ -46,15 +48,19 @@ func (impl *Auth) handleAuthCallback(c echo.Context) error {
 }
 
 func (impl *Auth) handleUserInfo(c echo.Context) error {
-	var token = c.Request().Header.Get("token")
-
-	if token == "" {
-		impl.Logger.Errorf("Error request: Token hasn't found on request header")
+	authorizationHeaderValue := c.Request().Header.Get("Authorization")
+	if authorizationHeaderValue == "" {
+		errorMessage := "Error request: Authorization hasn't found on request header"
+		impl.Logger.Errorf(errorMessage)
 		return c.JSON(http.StatusBadRequest, dto.Response{
 			Status: http.StatusBadRequest,
-			Error:  "Error request: Token hasn't found on request header",
+			Error:  errorMessage,
 		})
 	}
+
+	tokenType := "Bearer"
+	tokenStartIndex := strings.Index(authorizationHeaderValue, tokenType)
+	token := authorizationHeaderValue[tokenStartIndex+(len(tokenType)+1):]
 
 	response, err := impl.Service.Auth.GetUserInfo(token)
 	if err != nil {
