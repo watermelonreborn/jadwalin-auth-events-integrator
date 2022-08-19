@@ -1,6 +1,6 @@
 package entity
 
 type User struct {
-	Name  string `bson:"name"`
-	Token string `bson:"token"`
+	ID           string `bson: "_id,omitempty"`
+	RefreshToken string `bson:"refresh_token"`
 }

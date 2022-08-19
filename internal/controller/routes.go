@@ -12,6 +12,7 @@ type Holder struct {
 	Dependencies shared.Dependencies
 	Test         Test
 	Auth         Auth
+	Event        Event
 }
 
 func (impl *Holder) RegisterRoutes() {
@@ -24,4 +25,5 @@ func (impl *Holder) RegisterRoutes() {
 	app.GET("/auth", impl.Auth.handleAuth)
 	app.GET("/callback", impl.Auth.handleAuthCallback)
 	app.GET("/userinfo", impl.Auth.handleUserInfo)
+	app.GET("/sync", impl.Event.handleSync)
 }

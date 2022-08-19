@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"jadwalin-auth-events-integrator/internal/entity"
 	"jadwalin-auth-events-integrator/internal/repository"
 	"jadwalin-auth-events-integrator/internal/shared/dto"
 	"net/http"
@@ -30,6 +31,8 @@ type (
 		URL() string
 		GenerateToken(string, string) (dto.TokenResponse, error)
 		GetUserInfo(string) (dto.UserInfoResponse, error)
+		IsUserExist(string) (bool, error)
+		AddUser(entity.User) error
 	}
 
 	authService struct {
@@ -107,7 +110,23 @@ func (service *authService) GetUserInfo(accessToken string) (dto.UserInfoRespons
 
 }
 
-func OAuth(logger log.Logger, repo repository.Holder) (Auth, error) {
+func (service *authService) IsUserExist(userId string) (bool, error) {
+	result, err := service.repository.Auth.IsUserExist(userId)
+
+	return result, err
+}
+
+func (service *authService) AddUser(user entity.User) error {
+	err := service.repository.Auth.AddUser(user)
+	if err != nil {
+		service.logger.Error("Error: %s", err)
+		return err
+	}
+
+	return nil
+}
+
+func NewAuth(logger log.Logger, repo repository.Holder) (Auth, error) {
 	return &authService{
 		logger:     logger,
 		repository: repo,
