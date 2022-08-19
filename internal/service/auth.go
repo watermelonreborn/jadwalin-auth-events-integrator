@@ -53,7 +53,7 @@ func init() {
 }
 
 func (service *authService) URL() string {
-	return config.AuthCodeURL(OAUTH_STATE_STRING, oauth2.AccessTypeOffline)
+	return config.AuthCodeURL(OAUTH_STATE_STRING, oauth2.AccessTypeOffline, oauth2.ApprovalForce)
 }
 
 func (service *authService) GenerateToken(state string, code string) (dto.TokenResponse, error) {
