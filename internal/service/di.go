@@ -6,8 +6,9 @@ import (
 
 type Holder struct {
 	dig.In
-	Test Test
-	Auth Auth
+	Test  Test
+	Auth  Auth
+	Event Event
 }
 
 func Register(container *dig.Container) error {
@@ -15,7 +16,11 @@ func Register(container *dig.Container) error {
 		return err
 	}
 
-	if err := container.Provide(OAuth); err != nil {
+	if err := container.Provide(NewAuth); err != nil {
+		return err
+	}
+
+	if err := container.Provide(NewEvent); err != nil {
 		return err
 	}
 

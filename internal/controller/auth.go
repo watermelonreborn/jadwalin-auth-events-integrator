@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"jadwalin-auth-events-integrator/internal/entity"
 	"jadwalin-auth-events-integrator/internal/service"
 	"jadwalin-auth-events-integrator/internal/shared/dto"
 	"net/http"
@@ -40,6 +41,31 @@ func (impl *Auth) handleAuthCallback(c echo.Context) error {
 	}
 
 	impl.Logger.Info("Auth Token Generated")
+
+	userInfoDTO, err := impl.Service.Auth.GetUserInfo(token.AccessToken)
+	if err != nil {
+		impl.Logger.Error(err)
+		return c.JSON(http.StatusInternalServerError, dto.Response{
+			Status: http.StatusInternalServerError,
+			Error:  err.Error(),
+		})
+	}
+
+	isUserExist, err := impl.Service.Auth.IsUserExist(userInfoDTO.ID)
+	if err != nil {
+		impl.Logger.Error(err)
+		return c.JSON(http.StatusInternalServerError, dto.Response{
+			Status: http.StatusInternalServerError,
+			Error:  err.Error(),
+		})
+	}
+
+	if !isUserExist {
+		impl.Service.Auth.AddUser(entity.User{
+			ID:           userInfoDTO.ID,
+			RefreshToken: token.RefreshToken,
+		})
+	}
 
 	return c.JSON(http.StatusOK, dto.Response{
 		Status: http.StatusOK,
