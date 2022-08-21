@@ -16,7 +16,7 @@ var (
 )
 
 const (
-	UserTokenCollection = "UserToken"
+	UserTokenCollection = "user_token"
 )
 
 type (
@@ -49,7 +49,7 @@ func (repo *authRepo) IsUserExist(userId string) (bool, error) {
 	err := result.Err()
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
-			repo.logger.Errorf("User is not exist: %s", err)
+			repo.logger.Infof("User is not exist: %s", err)
 			return false, nil
 		}
 		repo.logger.Errorf("Error: %s", err)

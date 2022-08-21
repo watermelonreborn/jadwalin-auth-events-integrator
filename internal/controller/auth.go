@@ -42,22 +42,25 @@ func (impl *Auth) handleAuthCallback(c echo.Context) error {
 
 	impl.Logger.Info("Auth Token Generated")
 
+	go impl.handleDBProccess(token)
+
+	return c.JSON(http.StatusOK, dto.Response{
+		Status: http.StatusOK,
+		Data:   token,
+	})
+}
+
+func (impl *Auth) handleDBProccess(token dto.TokenResponse) {
 	userInfoDTO, err := impl.Service.Auth.GetUserInfo(token.AccessToken)
 	if err != nil {
 		impl.Logger.Error(err)
-		return c.JSON(http.StatusInternalServerError, dto.Response{
-			Status: http.StatusInternalServerError,
-			Error:  err.Error(),
-		})
+		return
 	}
 
 	isUserExist, err := impl.Service.Auth.IsUserExist(userInfoDTO.ID)
 	if err != nil {
 		impl.Logger.Error(err)
-		return c.JSON(http.StatusInternalServerError, dto.Response{
-			Status: http.StatusInternalServerError,
-			Error:  err.Error(),
-		})
+		return
 	}
 
 	if !isUserExist {
@@ -66,11 +69,6 @@ func (impl *Auth) handleAuthCallback(c echo.Context) error {
 			RefreshToken: token.RefreshToken,
 		})
 	}
-
-	return c.JSON(http.StatusOK, dto.Response{
-		Status: http.StatusOK,
-		Data:   token,
-	})
 }
 
 func (impl *Auth) handleUserInfo(c echo.Context) error {
