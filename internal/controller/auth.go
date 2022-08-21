@@ -11,6 +11,7 @@ import (
 	"github.com/labstack/echo/v4"
 	log "github.com/sirupsen/logrus"
 	"go.uber.org/dig"
+	"golang.org/x/oauth2"
 )
 
 type Auth struct {
@@ -64,11 +65,30 @@ func (impl *Auth) handleDBProccess(token dto.TokenResponse) {
 	}
 
 	if !isUserExist {
-		impl.Service.Auth.AddUser(entity.User{
+		err := impl.Service.Auth.AddUser(entity.User{
 			ID:           userInfoDTO.ID,
 			RefreshToken: token.RefreshToken,
 		})
+
+		if err != nil {
+			impl.Logger.Error(err)
+			return
+		}
+
+		impl.Logger.Info("User info saved to DB")
 	}
+
+	tokenOauth := &oauth2.Token{
+		AccessToken:  token.AccessToken,
+		RefreshToken: token.RefreshToken,
+	}
+
+	if err := impl.Service.Event.SyncAPIWithDB(tokenOauth, userInfoDTO.ID); err != nil {
+		impl.Logger.Error(err)
+		return
+	}
+
+	impl.Logger.Info("Synced the user info from the token")
 }
 
 func (impl *Auth) handleUserInfo(c echo.Context) error {

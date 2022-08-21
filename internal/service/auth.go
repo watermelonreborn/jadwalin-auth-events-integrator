@@ -30,6 +30,7 @@ type (
 	Auth interface {
 		URL() string
 		GenerateToken(string, string) (dto.TokenResponse, error)
+		GetToken(string) (*oauth2.Token, error)
 		GetUserInfo(string) (dto.UserInfoResponse, error)
 		IsUserExist(string) (bool, error)
 		AddUser(entity.User) error
@@ -77,6 +78,15 @@ func (service *authService) GenerateToken(state string, code string) (dto.TokenR
 		RefreshToken: token.RefreshToken,
 		Expiry:       token.Expiry.Unix(),
 	}, nil
+}
+
+func (service *authService) GetToken(userID string) (*oauth2.Token, error) {
+	refreshToken, err := service.repository.Auth.GetToken(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &oauth2.Token{RefreshToken: refreshToken}, nil
 }
 
 func (service *authService) GetUserInfo(accessToken string) (dto.UserInfoResponse, error) {

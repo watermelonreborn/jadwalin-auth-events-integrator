@@ -23,6 +23,7 @@ type (
 	Auth interface {
 		AddUser(entity.User) error
 		IsUserExist(string) (bool, error)
+		GetToken(string) (string, error)
 	}
 
 	authRepo struct {
@@ -58,6 +59,23 @@ func (repo *authRepo) IsUserExist(userId string) (bool, error) {
 
 	repo.logger.Info("Get user success")
 	return true, nil
+}
+
+func (repo *authRepo) GetToken(userId string) (string, error) {
+	result := repo.db.Collection(UserTokenCollection).FindOne(ctx, bson.D{primitive.E{Key: "_id", Value: userId}})
+	if err := result.Err(); err != nil {
+		repo.logger.Errorf("Error get token from db: %s", err)
+		return "", err
+	}
+
+	var user entity.User
+	if err := result.Decode(&user); err != nil {
+		repo.logger.Errorf("Error Decode to user: %s", err)
+		return "", err
+	}
+
+	repo.logger.Info("Get user success")
+	return user.RefreshToken, nil
 }
 
 func NewAuth(logger log.Logger, db *mongo.Database, redis *redis.Client) (Auth, error) {
