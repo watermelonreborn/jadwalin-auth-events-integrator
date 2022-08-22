@@ -16,6 +16,7 @@ type (
 	Event interface {
 		SyncAPIWithDB(*oauth2.Token, string) error
 		GetEventsInHour(int) ([]entity.UserEvents, error)
+		GetUserEvents(string) ([]entity.Event, error)
 	}
 
 	eventService struct {
@@ -95,6 +96,18 @@ func (service *eventService) GetEventsInHour(hour int) ([]entity.UserEvents, err
 	}
 
 	service.logger.Infof("Get Events In %d Hour success", hour)
+
+	return events, nil
+}
+
+func (service *eventService) GetUserEvents(userId string) ([]entity.Event, error) {
+	events, err := service.repository.Event.GetUserEvents(userId)
+	if err != nil {
+		service.logger.Errorf("Unable to get user events with user ID %v from database: %v", userId, err)
+		return nil, err
+	}
+
+	service.logger.Infof("Get user events with user ID %v", userId)
 
 	return events, nil
 }
