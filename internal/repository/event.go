@@ -19,6 +19,7 @@ type (
 	Event interface {
 		UpsertEvents(entity.UserEvents) error
 		GetAllEvents(string, string) ([]entity.UserEvents, error)
+		GetUserEvents(string) ([]entity.Event, error)
 	}
 
 	eventRepo struct {
@@ -64,6 +65,27 @@ func (repo *eventRepo) GetAllEvents(timeNow, timeHour string) ([]entity.UserEven
 	}
 
 	return result, nil
+}
+
+func (repo *eventRepo) GetUserEvents(userID string) ([]entity.Event, error) {
+	result := repo.db.Collection(UserEventsCollection).FindOne(ctx, bson.D{primitive.E{Key: "_id", Value: userID}})
+	if err := result.Err(); err != nil {
+		if err == mongo.ErrNoDocuments {
+			repo.logger.Infof("User is not exist: %s", err)
+			return nil, err
+		}
+
+		repo.logger.Errorf("Error: %s", err)
+		return nil, err
+	}
+
+	var user_events entity.UserEvents
+	if err := result.Decode(&user_events); err != nil {
+		repo.logger.Errorf("Error decode result query to user_events: %s", err)
+		return nil, err
+	}
+
+	return user_events.Events, nil
 }
 
 func NewEvent(logger log.Logger, db *mongo.Database, redis *redis.Client) (Event, error) {

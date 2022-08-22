@@ -86,8 +86,8 @@ func (impl *Event) handleGetEventsInHour(c echo.Context) error {
 }
 
 func (impl *Event) handleGetUserEvents(c echo.Context) error {
-	userID := c.Param("userID")
-	if userID == "" {
+	userId := c.Param("userID")
+	if userId == "" {
 		impl.Logger.Error("User ID is empty")
 		return c.JSON(http.StatusBadRequest, dto.Response{
 			Status: http.StatusBadRequest,
@@ -95,9 +95,19 @@ func (impl *Event) handleGetUserEvents(c echo.Context) error {
 		})
 	}
 
-	impl.Logger.Info("Getting Events for User ID: ", userID)
+	impl.Logger.Info("Getting Events for user ID: ", userId)
 
-	//TODO: get user events from DB(Calling services)
+	events, err := impl.Service.Event.GetUserEvents(userId)
+	if err != nil {
+		impl.Logger.Error(err)
+		return c.JSON(http.StatusInternalServerError, dto.Response{
+			Status: http.StatusInternalServerError,
+			Error:  err.Error(),
+		})
+	}
 
-	return nil
+	return c.JSON(http.StatusOK, dto.Response{
+		Status: http.StatusOK,
+		Data:   events,
+	})
 }
