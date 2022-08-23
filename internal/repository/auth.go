@@ -24,6 +24,7 @@ type (
 		AddUser(entity.User) error
 		IsUserExist(string) (bool, error)
 		GetToken(string) (string, error)
+		GetAllUserToken() ([]entity.User, error)
 	}
 
 	authRepo struct {
@@ -76,6 +77,22 @@ func (repo *authRepo) GetToken(userId string) (string, error) {
 
 	repo.logger.Info("Get user success")
 	return user.RefreshToken, nil
+}
+
+func (repo *authRepo) GetAllUserToken() ([]entity.User, error) {
+	cursor, err := repo.db.Collection(UserTokenCollection).Find(ctx, bson.D{})
+	if err != nil {
+		repo.logger.Errorf("Error get all user token from db: %s", err)
+		return nil, err
+	}
+
+	var usersToken []entity.User
+	if err := cursor.All(ctx, &usersToken); err != nil {
+		repo.logger.Errorf("Error decode to define struct: %s", err)
+		return nil, err
+	}
+
+	return usersToken, nil
 }
 
 func NewAuth(logger log.Logger, db *mongo.Database, redis *redis.Client) (Auth, error) {

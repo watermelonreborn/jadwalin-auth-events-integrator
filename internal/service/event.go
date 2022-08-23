@@ -14,6 +14,7 @@ import (
 
 type (
 	Event interface {
+		SchedulerSyncAPIWithDB()
 		SyncAPIWithDB(*oauth2.Token, string) error
 		GetEventsInHour(int) ([]entity.UserEvents, error)
 		GetUserEvents(string) ([]entity.Event, error)
@@ -24,6 +25,27 @@ type (
 		repository repository.Holder
 	}
 )
+
+func (service *eventService) SchedulerSyncAPIWithDB() {
+	service.logger.Infof("Scheduler started")
+
+	users, err := service.repository.Auth.GetAllUserToken()
+	if err != nil {
+		service.logger.Error(err)
+		return
+	}
+
+	for _, user := range users {
+		token := &oauth2.Token{RefreshToken: user.RefreshToken}
+		err := service.SyncAPIWithDB(token, user.ID)
+		if err != nil {
+			service.logger.Errorf("Sync events with userID %s failed %v", user.ID, err)
+		}
+	}
+
+	service.logger.Infof("Scheduler finished")
+
+}
 
 func (service *eventService) SyncAPIWithDB(token *oauth2.Token, userID string) error {
 	client := config.Client(context.Background(), token)
