@@ -29,7 +29,9 @@ func init() {
 		panic(err)
 	}
 
-	// TODO: Add another providers
+	if err := Container.Provide(NewScheduler); err != nil {
+		panic(err)
+	}
 
 	if err := Container.Provide(NewEcho); err != nil {
 		panic(err)

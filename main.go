@@ -28,6 +28,14 @@ func main() {
 			}
 		}()
 
+		go func() {
+			deps.Scheduler.Every(3).Hours().Do(func() {
+				deps.Services.Event.SchedulerSyncAPIWithDB()
+			})
+
+			deps.Scheduler.StartAsync()
+		}()
+
 		<-sig
 		deps.Logger.Infof("Shutting down server...")
 		deps.Close()

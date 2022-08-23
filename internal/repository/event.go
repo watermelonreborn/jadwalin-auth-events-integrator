@@ -18,7 +18,7 @@ const (
 type (
 	Event interface {
 		UpsertEvents(entity.UserEvents) error
-		GetAllEvents(string, string) ([]entity.UserEvents, error)
+		GetEventsInHour(string, string) ([]entity.UserEvents, error)
 		GetUserEvents(string) ([]entity.Event, error)
 	}
 
@@ -44,7 +44,7 @@ func (repo *eventRepo) UpsertEvents(userEvents entity.UserEvents) error {
 	return nil
 }
 
-func (repo *eventRepo) GetAllEvents(timeNow, timeHour string) ([]entity.UserEvents, error) {
+func (repo *eventRepo) GetEventsInHour(timeNow, timeHour string) ([]entity.UserEvents, error) {
 	pipeline := mongo.Pipeline{
 		{primitive.E{Key: "$unwind", Value: "$events"}},
 		{primitive.E{Key: "$match", Value: bson.D{primitive.E{Key: "events.start_time.date_time", Value: bson.D{primitive.E{Key: "$gt", Value: timeNow}, primitive.E{Key: "$lte", Value: timeHour}}}}}},
