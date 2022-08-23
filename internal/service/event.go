@@ -50,12 +50,6 @@ func (service *eventService) SyncAPIWithDB(token *oauth2.Token, userID string) e
 	}
 
 	for _, item := range events.Items {
-		var conferenceName, conferenceLink string
-		if item.ConferenceData != nil {
-			conferenceName = item.ConferenceData.ConferenceSolution.Name
-			conferenceLink = item.ConferenceData.EntryPoints[0].Uri
-		}
-
 		userEvents.Events = append(userEvents.Events, entity.Event{
 			Description: item.Description,
 			Organizer:   item.Organizer.Email,
@@ -69,10 +63,7 @@ func (service *eventService) SyncAPIWithDB(token *oauth2.Token, userID string) e
 				DateTime: item.End.DateTime,
 				TimeZone: item.End.TimeZone,
 			},
-			ConferenceData: entity.ConferenceData{
-				Name: conferenceName,
-				URI:  conferenceLink,
-			},
+			URI: item.HangoutLink,
 		})
 	}
 
@@ -89,7 +80,7 @@ func (service *eventService) SyncAPIWithDB(token *oauth2.Token, userID string) e
 func (service *eventService) GetEventsInHour(hour int) ([]entity.UserEvents, error) {
 	timeNow := time.Now().Format(time.RFC3339)
 	timeHour := time.Now().Add(time.Duration(hour) * time.Hour).Format(time.RFC3339)
-	events, err := service.repository.Event.GetAllEvents(timeNow, timeHour)
+	events, err := service.repository.Event.GetEventsInHour(timeNow, timeHour)
 	if err != nil {
 		service.logger.Errorf("Unable to get events from database: %v", err)
 		return nil, err
