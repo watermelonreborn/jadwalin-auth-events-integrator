@@ -28,13 +28,12 @@ func main() {
 			}
 		}()
 
-		go func() {
-			deps.Scheduler.Every(3).Hours().Do(func() {
-				deps.Services.Event.SchedulerSyncAPIWithDB()
-			})
-
-			deps.Scheduler.StartAsync()
-		}()
+		deps.Scheduler.Every(3).Hours().Do(func() {
+			deps.Logger.Info("Scheduler started")
+			deps.Services.Event.SchedulerSyncAPIWithDB()
+			deps.Logger.Info("Scheduler finished")
+		})
+		deps.Scheduler.StartAsync()
 
 		<-sig
 		deps.Logger.Infof("Shutting down server...")

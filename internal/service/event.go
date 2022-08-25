@@ -27,8 +27,6 @@ type (
 )
 
 func (service *eventService) SchedulerSyncAPIWithDB() {
-	service.logger.Infof("Scheduler started")
-
 	users, err := service.repository.Auth.GetAllUserToken()
 	if err != nil {
 		service.logger.Error(err)
@@ -42,9 +40,6 @@ func (service *eventService) SchedulerSyncAPIWithDB() {
 			service.logger.Errorf("Sync events with userID %s failed %v", user.ID, err)
 		}
 	}
-
-	service.logger.Infof("Scheduler finished")
-
 }
 
 func (service *eventService) SyncAPIWithDB(token *oauth2.Token, userID string) error {
