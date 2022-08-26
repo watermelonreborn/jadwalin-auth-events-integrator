@@ -111,3 +111,33 @@ func (impl *Event) handleGetUserEvents(c echo.Context) error {
 		Data:   events,
 	})
 }
+
+func (impl *Event) handleGetUserSummary(c echo.Context) error {
+	var (
+		request = dto.SummaryRequest{}
+	)
+
+	if err := c.Bind(&request); err != nil {
+		impl.Logger.Errorf("Error binding request in handleGetUserSummary: %s", err)
+		return c.JSON(http.StatusInternalServerError, dto.Response{
+			Status: http.StatusInternalServerError,
+			Error:  err.Error(),
+		})
+	}
+	impl.Logger.Info("Succesfully binding request in handleGetUserSummary")
+
+	response, err := impl.Service.Event.GetUserSummary(request)
+	if err != nil {
+		impl.Logger.Errorf("Error getting user summary from service: %s", err)
+		return c.JSON(http.StatusInternalServerError, dto.Response{
+			Status: http.StatusInternalServerError,
+			Error:  err.Error(),
+		})
+	}
+	impl.Logger.Info("Succesfully getting user summary from service in handleGetUserSummary")
+
+	return c.JSON(http.StatusOK, dto.Response{
+		Status: http.StatusOK,
+		Data:   response,
+	})
+}

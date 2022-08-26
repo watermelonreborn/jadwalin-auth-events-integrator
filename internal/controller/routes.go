@@ -28,4 +28,5 @@ func (impl *Holder) RegisterRoutes() {
 	app.GET("/sync/:userID", impl.Event.handleSync)
 	app.GET("/events/:hour", impl.Event.handleGetEventsInHour)
 	app.GET("/user-events/:userID", impl.Event.handleGetUserEvents)
+	app.GET("/user-summary", impl.Event.handleGetUserSummary)
 }
