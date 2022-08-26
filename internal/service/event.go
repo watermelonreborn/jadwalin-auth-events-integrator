@@ -4,6 +4,7 @@ import (
 	"context"
 	"jadwalin-auth-events-integrator/internal/entity"
 	"jadwalin-auth-events-integrator/internal/repository"
+	"jadwalin-auth-events-integrator/internal/shared/dto"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -18,6 +19,7 @@ type (
 		SyncAPIWithDB(*oauth2.Token, string) error
 		GetEventsInHour(int) ([]entity.UserEvents, error)
 		GetUserEvents(string) ([]entity.Event, error)
+		GetUserSummary(dto.SummaryRequest) ([]dto.SummaryResponse, error)
 	}
 
 	eventService struct {
@@ -118,6 +120,19 @@ func (service *eventService) GetUserEvents(userId string) ([]entity.Event, error
 	service.logger.Infof("Get user events with user ID %v", userId)
 
 	return events, nil
+}
+
+func (service *eventService) GetUserSummary(request dto.SummaryRequest) ([]dto.SummaryResponse, error) {
+	userId := request.UserId
+	userSummary, err := service.repository.Event.GetUserSummary(request)
+	if err != nil {
+		service.logger.Errorf("Unable to get user summary with user ID %v from database: %v", userId, err)
+		return nil, err
+	}
+
+	service.logger.Infof("Get user summary with user ID %v from database success", userId)
+
+	return userSummary, nil
 }
 
 func NewEvent(logger log.Logger, repo repository.Holder) (Event, error) {

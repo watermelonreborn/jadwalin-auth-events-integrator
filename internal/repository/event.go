@@ -2,6 +2,10 @@ package repository
 
 import (
 	"jadwalin-auth-events-integrator/internal/entity"
+	"jadwalin-auth-events-integrator/internal/shared/dto"
+	"sort"
+	"strings"
+	"time"
 
 	"github.com/go-redis/redis/v8"
 	log "github.com/sirupsen/logrus"
@@ -20,6 +24,7 @@ type (
 		UpsertEvents(entity.UserEvents) error
 		GetEventsInHour(string, string) ([]entity.UserEvents, error)
 		GetUserEvents(string) ([]entity.Event, error)
+		GetUserSummary(dto.SummaryRequest) ([]dto.SummaryResponse, error)
 	}
 
 	eventRepo struct {
@@ -71,21 +76,183 @@ func (repo *eventRepo) GetUserEvents(userID string) ([]entity.Event, error) {
 	result := repo.db.Collection(UserEventsCollection).FindOne(ctx, bson.D{primitive.E{Key: "_id", Value: userID}})
 	if err := result.Err(); err != nil {
 		if err == mongo.ErrNoDocuments {
-			repo.logger.Infof("User is not exist: %s", err)
+			repo.logger.Infof("User with user ID %s is not exist when geting user events from database: %s", userID, err)
 			return nil, err
 		}
 
-		repo.logger.Errorf("Error: %s", err)
+		repo.logger.Errorf("Getting user events from database error: %s", err)
 		return nil, err
 	}
 
 	var user_events entity.UserEvents
 	if err := result.Decode(&user_events); err != nil {
-		repo.logger.Errorf("Error decode result query to user_events: %s", err)
+		repo.logger.Errorf("Error decode query result to user_events: %s", err)
 		return nil, err
 	}
 
 	return user_events.Events, nil
+}
+
+func (repo *eventRepo) GetUserSummary(request dto.SummaryRequest) ([]dto.SummaryResponse, error) {
+	var response []dto.SummaryResponse
+
+	// Get user events
+	userEvents, err := repo.GetUserEvents(request.UserId)
+	if err != nil {
+		repo.logger.Errorf("Failed to get user events for making user summary: %v", err)
+		return nil, err
+	}
+
+	// Build map which value is slice of hour from user events
+	userEventsInMapShape := make(map[string][]int)
+	for _, event := range userEvents {
+		// Build slice of hour to map for start time
+		startTime, err := time.Parse(time.RFC3339, event.StartTime.DateTime)
+		if err != nil {
+			repo.logger.Errorf("Failed to parse startTime of event when getting summary: %v", err)
+			continue
+		}
+
+		startTimeDate := strings.Split(startTime.String(), " ")[0]
+		startTimeHour := startTime.Hour()
+		startTimeValue, startTimeIsExist := userEventsInMapShape[startTimeDate]
+		if startTimeIsExist {
+			userEventsInMapShape[startTimeDate] = append(startTimeValue, startTimeHour)
+		} else {
+			userEventsInMapShape[startTimeDate] = make([]int, 0)
+			userEventsInMapShape[startTimeDate] = append(userEventsInMapShape[startTimeDate], startTimeHour)
+		}
+
+		// Build slice of hour to map for end time
+		endTime, err := time.Parse(time.RFC3339, event.EndTime.DateTime)
+		if err != nil {
+			repo.logger.Errorf("Failed to parse endTime of event when getting summary: %v", err)
+			continue
+		}
+
+		if endTime.Minute() == 0 {
+			continue
+		}
+		endTimeDate := strings.Split(endTime.String(), " ")[0]
+		endTimeHour := endTime.Hour()
+		endTimeValue, endTimeIsExist := userEventsInMapShape[endTimeDate]
+		if endTimeIsExist {
+			userEventsInMapShape[endTimeDate] = append(endTimeValue, endTimeHour)
+		} else {
+			userEventsInMapShape[endTimeDate] = make([]int, 0)
+			userEventsInMapShape[endTimeDate] = append(userEventsInMapShape[endTimeDate], endTimeHour)
+		}
+	}
+	repo.logger.Info("Succesfully build map which value is slice of hour from user events: %s", userEventsInMapShape)
+
+	// Create slice of hour from request. Range value is from 0 - 24.
+	var reqEndHour int
+	if request.EndHour == 0 {
+		reqEndHour = 24
+	}
+	requestHour := make([]int, 0)
+	for i := request.StartHour; i <= reqEndHour; i++ {
+		requestHour = append(requestHour, i)
+	}
+
+	repo.logger.Info("Succesfully create slice of hour from request: %s", requestHour)
+
+	// Iterate for every days in request to create SummaryResponse
+	for i := 0; i <= request.Days; i++ {
+		currentAvailability := make([]int, len(requestHour))
+		copy(currentAvailability, requestHour)
+
+		currentRequestTime := time.Now().AddDate(0, 0, i)
+		currentRequestDate := strings.Split(currentRequestTime.String(), " ")[0]
+
+		currentEventHours, currentEventHoursIsExist := userEventsInMapShape[currentRequestDate]
+		if currentEventHoursIsExist {
+			substractResult := substract(currentAvailability, currentEventHours)
+			substractResultLength := len(substractResult)
+			sort.Sort(sort.IntSlice(substractResult))
+			repo.logger.Info("Succesfully substract currentAvailability slice with currentEventHours: %s", substractResult)
+
+			var availabilityResult []dto.TimeSpan
+			var startAvailabilityBoundary int
+			continuityTimeFlag := false
+			for j := 0; j < substractResultLength-1; j++ {
+				if substractResult[j+1] == (substractResult[j] + 1) {
+					if continuityTimeFlag {
+						continue
+					} else {
+						continuityTimeFlag = true
+						startAvailabilityBoundary = substractResult[j]
+					}
+				} else {
+					if continuityTimeFlag {
+						continuityTimeFlag = false
+						availabilityResult = append(availabilityResult, dto.TimeSpan{
+							StartHour: startAvailabilityBoundary,
+							EndHour:   substractResult[j] + 1,
+						})
+					} else {
+						availabilityResult = append(availabilityResult, dto.TimeSpan{
+							StartHour: substractResult[j],
+							EndHour:   substractResult[j] + 1,
+						})
+					}
+				}
+			}
+
+			substractResultLastElement := substractResult[substractResultLength-1]
+			if continuityTimeFlag {
+				if substractResultLastElement == reqEndHour {
+					availabilityResult = append(availabilityResult, dto.TimeSpan{
+						StartHour: startAvailabilityBoundary,
+						EndHour:   substractResultLastElement,
+					})
+				} else {
+					availabilityResult = append(availabilityResult, dto.TimeSpan{
+						StartHour: startAvailabilityBoundary,
+						EndHour:   substractResultLastElement + 1,
+					})
+				}
+			} else {
+				if substractResultLastElement != reqEndHour {
+					availabilityResult = append(availabilityResult, dto.TimeSpan{
+						StartHour: substractResultLastElement,
+						EndHour:   substractResultLastElement + 1,
+					})
+				}
+			}
+
+			if len(availabilityResult) != 0 {
+				response = append(response, dto.SummaryResponse{
+					Date:         currentRequestDate,
+					Availibility: availabilityResult,
+				})
+			}
+
+			repo.logger.Info("SummaryResponse added: %s", response)
+		}
+	}
+
+	return response, nil
+}
+
+// Return firstSlice without element that also exist in secondSlice
+func substract(firstSlice []int, secondSlice []int) []int {
+	var result []int
+	for _, s1 := range firstSlice {
+		found := false
+		for _, s2 := range secondSlice {
+			if s1 == s2 {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			result = append(result, s1)
+		}
+	}
+
+	return result
 }
 
 func NewEvent(logger log.Logger, db *mongo.Database, redis *redis.Client) (Event, error) {
