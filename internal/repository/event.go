@@ -94,6 +94,7 @@ func (repo *eventRepo) GetUserEvents(userID string) ([]entity.Event, error) {
 }
 
 func (repo *eventRepo) GetUserSummary(request dto.SummaryRequest) ([]dto.SummaryResponse, error) {
+	repo.logger.Info(request)
 	var response []dto.SummaryResponse
 
 	// Get user events
@@ -112,35 +113,26 @@ func (repo *eventRepo) GetUserSummary(request dto.SummaryRequest) ([]dto.Summary
 			repo.logger.Errorf("Failed to parse startTime of event when getting summary: %v", err)
 			continue
 		}
-
-		startTimeDate := strings.Split(startTime.String(), " ")[0]
-		startTimeHour := startTime.Hour()
-		startTimeValue, startTimeIsExist := userEventsInMapShape[startTimeDate]
-		if startTimeIsExist {
-			userEventsInMapShape[startTimeDate] = append(startTimeValue, startTimeHour)
-		} else {
-			userEventsInMapShape[startTimeDate] = make([]int, 0)
-			userEventsInMapShape[startTimeDate] = append(userEventsInMapShape[startTimeDate], startTimeHour)
-		}
-
-		// Build slice of hour to map for end time
 		endTime, err := time.Parse(time.RFC3339, event.EndTime.DateTime)
 		if err != nil {
 			repo.logger.Errorf("Failed to parse endTime of event when getting summary: %v", err)
 			continue
 		}
 
+		timeDate := strings.Split(startTime.String(), " ")[0]
+		startTimeHour := startTime.Hour()
+		var endTimeHour int
 		if endTime.Minute() == 0 {
-			continue
-		}
-		endTimeDate := strings.Split(endTime.String(), " ")[0]
-		endTimeHour := endTime.Hour()
-		endTimeValue, endTimeIsExist := userEventsInMapShape[endTimeDate]
-		if endTimeIsExist {
-			userEventsInMapShape[endTimeDate] = append(endTimeValue, endTimeHour)
+			endTimeHour = endTime.Hour() - 1
 		} else {
-			userEventsInMapShape[endTimeDate] = make([]int, 0)
-			userEventsInMapShape[endTimeDate] = append(userEventsInMapShape[endTimeDate], endTimeHour)
+			endTimeHour = endTime.Hour()
+		}
+		_, timeDateHoursExist := userEventsInMapShape[timeDate]
+		if !timeDateHoursExist {
+			userEventsInMapShape[timeDate] = make([]int, 0)
+		}
+		for hour := startTimeHour; hour <= endTimeHour; hour++ {
+			userEventsInMapShape[timeDate] = append(userEventsInMapShape[timeDate], hour)
 		}
 	}
 	repo.logger.Info("Succesfully build map which value is slice of hour from user events: %s", userEventsInMapShape)
@@ -149,6 +141,8 @@ func (repo *eventRepo) GetUserSummary(request dto.SummaryRequest) ([]dto.Summary
 	var reqEndHour int
 	if request.EndHour == 0 {
 		reqEndHour = 24
+	} else {
+		reqEndHour = request.EndHour
 	}
 	requestHour := make([]int, 0)
 	for i := request.StartHour; i <= reqEndHour; i++ {
