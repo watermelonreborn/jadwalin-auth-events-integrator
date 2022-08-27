@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
+	"os"
+
 	"jadwalin-auth-events-integrator/internal/entity"
 	"jadwalin-auth-events-integrator/internal/repository"
 	"jadwalin-auth-events-integrator/internal/shared/dto"
@@ -42,7 +44,7 @@ type (
 )
 
 func init() {
-	bytes, err := ioutil.ReadFile("credentials.json")
+	bytes, err := os.ReadFile("credentials.json")
 	if err != nil {
 		log.Fatalf("Unable to read client secret file: %v", err)
 		panic(err)
@@ -104,7 +106,7 @@ func (service *authService) GetUserInfo(accessToken string) (dto.UserInfoRespons
 		return dto.UserInfoResponse{}, fmt.Errorf("failed to get user info: %s", response.Status)
 	}
 
-	bodyBytes, err := ioutil.ReadAll(response.Body)
+	bodyBytes, err := io.ReadAll(response.Body)
 	if err != nil {
 		return dto.UserInfoResponse{}, fmt.Errorf("failed to read user info: %s", err.Error())
 	}
