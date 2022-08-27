@@ -58,25 +58,15 @@ func (impl *Auth) handleDBProccess(token dto.TokenResponse) {
 		return
 	}
 
-	isUserExist, err := impl.Service.Auth.IsUserExist(userInfoDTO.ID)
-	if err != nil {
+	if err = impl.Service.Auth.UpsertUser(entity.User{
+		ID:           userInfoDTO.ID,
+		RefreshToken: token.RefreshToken,
+	}); err != nil {
 		impl.Logger.Error(err)
 		return
 	}
 
-	if !isUserExist {
-		err := impl.Service.Auth.AddUser(entity.User{
-			ID:           userInfoDTO.ID,
-			RefreshToken: token.RefreshToken,
-		})
-
-		if err != nil {
-			impl.Logger.Error(err)
-			return
-		}
-
-		impl.Logger.Info("User info saved to DB")
-	}
+	impl.Logger.Info("User info saved to DB")
 
 	tokenOauth := &oauth2.Token{
 		AccessToken:  token.AccessToken,

@@ -59,7 +59,7 @@ func (service *eventService) SyncAPIWithDB(token *oauth2.Token, userID string) e
 	events, err := srv.Events.List("primary").ShowDeleted(false).
 		SingleEvents(true).TimeMin(t).TimeMax(tMonth).OrderBy("startTime").Do()
 	if err != nil {
-		service.logger.Errorf("Unable to retrieve next ten of the user's events: %v", err)
+		service.logger.Errorf("Unable to retrieve next ten of the user's events with ID (%s): %v", userID, err)
 		return err
 	}
 

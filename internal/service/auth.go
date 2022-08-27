@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
+	"os"
+
 	"jadwalin-auth-events-integrator/internal/entity"
 	"jadwalin-auth-events-integrator/internal/repository"
 	"jadwalin-auth-events-integrator/internal/shared/dto"
@@ -32,8 +34,7 @@ type (
 		GenerateToken(string, string) (dto.TokenResponse, error)
 		GetToken(string) (*oauth2.Token, error)
 		GetUserInfo(string) (dto.UserInfoResponse, error)
-		IsUserExist(string) (bool, error)
-		AddUser(entity.User) error
+		UpsertUser(entity.User) error
 	}
 
 	authService struct {
@@ -43,7 +44,7 @@ type (
 )
 
 func init() {
-	bytes, err := ioutil.ReadFile("credentials.json")
+	bytes, err := os.ReadFile("credentials.json")
 	if err != nil {
 		log.Fatalf("Unable to read client secret file: %v", err)
 		panic(err)
@@ -105,7 +106,7 @@ func (service *authService) GetUserInfo(accessToken string) (dto.UserInfoRespons
 		return dto.UserInfoResponse{}, fmt.Errorf("failed to get user info: %s", response.Status)
 	}
 
-	bodyBytes, err := ioutil.ReadAll(response.Body)
+	bodyBytes, err := io.ReadAll(response.Body)
 	if err != nil {
 		return dto.UserInfoResponse{}, fmt.Errorf("failed to read user info: %s", err.Error())
 	}
@@ -120,14 +121,8 @@ func (service *authService) GetUserInfo(accessToken string) (dto.UserInfoRespons
 
 }
 
-func (service *authService) IsUserExist(userId string) (bool, error) {
-	result, err := service.repository.Auth.IsUserExist(userId)
-
-	return result, err
-}
-
-func (service *authService) AddUser(user entity.User) error {
-	err := service.repository.Auth.AddUser(user)
+func (service *authService) UpsertUser(user entity.User) error {
+	err := service.repository.Auth.UpsertUser(user)
 	if err != nil {
 		service.logger.Error("Error: %s", err)
 		return err
