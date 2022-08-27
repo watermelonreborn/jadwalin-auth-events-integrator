@@ -126,6 +126,18 @@ func (impl *Event) handleGetUserSummary(c echo.Context) error {
 	}
 	impl.Logger.Info("Succesfully binding request in handleGetUserSummary")
 
+	if request.EndHour == 0 {
+		request.EndHour = 24
+	}
+
+	// Edge case from request body
+	if request.StartHour >= request.EndHour {
+		return c.JSON(http.StatusInternalServerError, dto.Response{
+			Status: http.StatusInternalServerError,
+			Error:  "Error: start_hour can't be same or bigger than end_hour",
+		})
+	}
+
 	response, err := impl.Service.Event.GetUserSummary(request)
 	if err != nil {
 		impl.Logger.Errorf("Error getting user summary from service: %s", err)

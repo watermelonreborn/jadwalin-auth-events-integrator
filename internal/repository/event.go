@@ -119,111 +119,126 @@ func (repo *eventRepo) GetUserSummary(request dto.SummaryRequest) ([]dto.Summary
 			continue
 		}
 
-		timeDate := strings.Split(startTime.String(), " ")[0]
-		startTimeHour := startTime.Hour()
-		var endTimeHour int
-		if endTime.Minute() == 0 {
-			endTimeHour = endTime.Hour() - 1
-		} else {
-			endTimeHour = endTime.Hour()
-		}
-		_, timeDateHoursExist := userEventsInMapShape[timeDate]
-		if !timeDateHoursExist {
-			userEventsInMapShape[timeDate] = make([]int, 0)
-		}
-		for hour := startTimeHour; hour <= endTimeHour; hour++ {
-			userEventsInMapShape[timeDate] = append(userEventsInMapShape[timeDate], hour)
+		startTimeDate := strings.Split(startTime.String(), " ")[0]
+		endTimeDate := strings.Split(endTime.String(), " ")[0]
+		if startTimeDate == endTimeDate {
+			startTimeHour := startTime.Hour()
+			_, startTimeDateHoursExist := userEventsInMapShape[startTimeDate]
+			if !startTimeDateHoursExist {
+				userEventsInMapShape[startTimeDate] = make([]int, 0)
+			}
+			if endTime.Minute() == 0 {
+				for hour := startTimeHour; hour < endTime.Hour(); hour++ {
+					userEventsInMapShape[startTimeDate] = append(userEventsInMapShape[startTimeDate], hour)
+				}
+			} else {
+				for hour := startTimeHour; hour <= endTime.Hour(); hour++ {
+					userEventsInMapShape[startTimeDate] = append(userEventsInMapShape[startTimeDate], hour)
+				}
+			}
 		}
 	}
 	repo.logger.Info("Succesfully build map which value is slice of hour from user events: %s", userEventsInMapShape)
 
-	// Create slice of hour from request. Range value is from 0 - 24.
-	var reqEndHour int
-	if request.EndHour == 0 {
-		reqEndHour = 24
-	} else {
-		reqEndHour = request.EndHour
-	}
-	requestHour := make([]int, 0)
-	for i := request.StartHour; i <= reqEndHour; i++ {
-		requestHour = append(requestHour, i)
-	}
-
-	repo.logger.Info("Succesfully create slice of hour from request: %s", requestHour)
-
 	// Iterate for every days in request to create SummaryResponse
 	for i := 0; i <= request.Days; i++ {
-		currentAvailability := make([]int, len(requestHour))
-		copy(currentAvailability, requestHour)
+
+		// Create slice of hour from request. Range value is from 0 - 24.
+		currentAvailability := make([]int, 0)
+		var nowStartHour int
+		currentTime := time.Now()
+		if i == 0 && currentTime.Hour() > request.StartHour {
+			if currentTime.Minute() != 0 && currentTime.Second() != 0 {
+				nowStartHour = currentTime.Hour() + 1
+			} else {
+				nowStartHour = currentTime.Hour()
+			}
+		} else {
+			nowStartHour = request.StartHour
+		}
+
+		for k := nowStartHour; k <= request.EndHour; k++ {
+			currentAvailability = append(currentAvailability, k)
+		}
+		sort.Sort(sort.IntSlice(currentAvailability))
+		repo.logger.Info("Succesfully create slice of availability hour from request: %s", currentAvailability)
 
 		currentRequestTime := time.Now().AddDate(0, 0, i)
 		currentRequestDate := strings.Split(currentRequestTime.String(), " ")[0]
+		var availabilityResult []dto.TimeSpan
 
 		currentEventHours, currentEventHoursIsExist := userEventsInMapShape[currentRequestDate]
 		if currentEventHoursIsExist {
+			sort.Sort(sort.IntSlice(currentEventHours))
 			substractResult := substract(currentAvailability, currentEventHours)
-			substractResultLength := len(substractResult)
-			sort.Sort(sort.IntSlice(substractResult))
 			repo.logger.Info("Succesfully substract currentAvailability slice with currentEventHours: %s", substractResult)
 
-			var availabilityResult []dto.TimeSpan
-			var startAvailabilityBoundary int
-			continuityTimeFlag := false
-			for j := 0; j < substractResultLength-1; j++ {
-				if substractResult[j+1] == (substractResult[j] + 1) {
-					if continuityTimeFlag {
-						continue
+			substractResultLength := len(substractResult)
+			if substractResultLength != 0 {
+				var startAvailabilityBoundary int
+				continuityTimeFlag := false
+				for j := 0; j < substractResultLength-1; j++ {
+					if substractResult[j+1] == (substractResult[j] + 1) {
+						if continuityTimeFlag {
+							continue
+						} else {
+							continuityTimeFlag = true
+							startAvailabilityBoundary = substractResult[j]
+						}
 					} else {
-						continuityTimeFlag = true
-						startAvailabilityBoundary = substractResult[j]
+						if continuityTimeFlag {
+							continuityTimeFlag = false
+							availabilityResult = append(availabilityResult, dto.TimeSpan{
+								StartHour: startAvailabilityBoundary,
+								EndHour:   substractResult[j] + 1,
+							})
+						} else {
+							availabilityResult = append(availabilityResult, dto.TimeSpan{
+								StartHour: substractResult[j],
+								EndHour:   substractResult[j] + 1,
+							})
+						}
 					}
-				} else {
-					if continuityTimeFlag {
-						continuityTimeFlag = false
+				}
+
+				substractResultLastElement := substractResult[substractResultLength-1]
+				if continuityTimeFlag {
+					if substractResultLastElement == request.EndHour {
 						availabilityResult = append(availabilityResult, dto.TimeSpan{
 							StartHour: startAvailabilityBoundary,
-							EndHour:   substractResult[j] + 1,
+							EndHour:   substractResultLastElement,
 						})
 					} else {
 						availabilityResult = append(availabilityResult, dto.TimeSpan{
-							StartHour: substractResult[j],
-							EndHour:   substractResult[j] + 1,
+							StartHour: startAvailabilityBoundary,
+							EndHour:   substractResultLastElement + 1,
+						})
+					}
+				} else {
+					if substractResultLastElement != request.EndHour {
+						availabilityResult = append(availabilityResult, dto.TimeSpan{
+							StartHour: substractResultLastElement,
+							EndHour:   substractResultLastElement + 1,
 						})
 					}
 				}
 			}
-
-			substractResultLastElement := substractResult[substractResultLength-1]
-			if continuityTimeFlag {
-				if substractResultLastElement == reqEndHour {
-					availabilityResult = append(availabilityResult, dto.TimeSpan{
-						StartHour: startAvailabilityBoundary,
-						EndHour:   substractResultLastElement,
-					})
-				} else {
-					availabilityResult = append(availabilityResult, dto.TimeSpan{
-						StartHour: startAvailabilityBoundary,
-						EndHour:   substractResultLastElement + 1,
-					})
-				}
-			} else {
-				if substractResultLastElement != reqEndHour {
-					availabilityResult = append(availabilityResult, dto.TimeSpan{
-						StartHour: substractResultLastElement,
-						EndHour:   substractResultLastElement + 1,
-					})
-				}
-			}
-
-			if len(availabilityResult) != 0 {
-				response = append(response, dto.SummaryResponse{
-					Date:         currentRequestDate,
-					Availibility: availabilityResult,
+		} else {
+			if len(currentAvailability) != 1 {
+				availabilityResult = append(availabilityResult, dto.TimeSpan{
+					StartHour: currentAvailability[0],
+					EndHour:   currentAvailability[len(currentAvailability)-1],
 				})
 			}
-
-			repo.logger.Info("SummaryResponse added: %s", response)
 		}
+
+		if len(availabilityResult) != 0 {
+			response = append(response, dto.SummaryResponse{
+				Date:         currentRequestDate,
+				Availibility: availabilityResult,
+			})
+		}
+		repo.logger.Info("SummaryResponse added: %s", response)
 	}
 
 	return response, nil
