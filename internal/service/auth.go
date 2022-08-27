@@ -32,8 +32,7 @@ type (
 		GenerateToken(string, string) (dto.TokenResponse, error)
 		GetToken(string) (*oauth2.Token, error)
 		GetUserInfo(string) (dto.UserInfoResponse, error)
-		IsUserExist(string) (bool, error)
-		AddUser(entity.User) error
+		UpsertUser(entity.User) error
 	}
 
 	authService struct {
@@ -120,14 +119,8 @@ func (service *authService) GetUserInfo(accessToken string) (dto.UserInfoRespons
 
 }
 
-func (service *authService) IsUserExist(userId string) (bool, error) {
-	result, err := service.repository.Auth.IsUserExist(userId)
-
-	return result, err
-}
-
-func (service *authService) AddUser(user entity.User) error {
-	err := service.repository.Auth.AddUser(user)
+func (service *authService) UpsertUser(user entity.User) error {
+	err := service.repository.Auth.UpsertUser(user)
 	if err != nil {
 		service.logger.Error("Error: %s", err)
 		return err
