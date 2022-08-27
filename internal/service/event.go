@@ -13,6 +13,10 @@ import (
 	"google.golang.org/api/option"
 )
 
+const (
+	YYYY_MM_DD = "2006-01-02"
+)
+
 type (
 	Event interface {
 		SchedulerSyncAPIWithDB()
@@ -69,18 +73,33 @@ func (service *eventService) SyncAPIWithDB(token *oauth2.Token, userID string) e
 	}
 
 	for _, item := range events.Items {
+		var (
+			startTime     = item.Start.DateTime
+			endTime       = item.End.DateTime
+			startTimeZone = item.Start.TimeZone
+			endTimeZone   = item.End.TimeZone
+		)
+
+		if startTime == "" {
+			theTime, _ := time.Parse(YYYY_MM_DD, item.Start.Date)
+			startTime = theTime.Format(time.RFC3339)
+			endTime = startTime
+			startTimeZone = time.UTC.String()
+			endTimeZone = startTimeZone
+		}
+
 		userEvents.Events = append(userEvents.Events, entity.Event{
 			Description: item.Description,
 			Organizer:   item.Organizer.Email,
 			Summary:     item.Summary,
 			UpdatedAt:   item.Updated,
 			StartTime: entity.EventTime{
-				DateTime: item.Start.DateTime,
-				TimeZone: item.Start.TimeZone,
+				DateTime: startTime,
+				TimeZone: startTimeZone,
 			},
 			EndTime: entity.EventTime{
-				DateTime: item.End.DateTime,
-				TimeZone: item.End.TimeZone,
+				DateTime: endTime,
+				TimeZone: endTimeZone,
 			},
 			URI: item.HangoutLink,
 		})
