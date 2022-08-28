@@ -140,18 +140,30 @@ func (repo *eventRepo) GetUserSummary(request dto.SummaryRequest) ([]dto.Summary
 	}
 	repo.logger.Info("Succesfully build map which value is slice of hour from user events: %s", userEventsInMapShape)
 
+	// Getting current time in Jakarta
+	loc, err := time.LoadLocation("Asia/Jakarta")
+	if err != nil {
+		repo.logger.Errorf("Failed to get time location when getting user summary from db: %v", err)
+		return nil, err
+	}
+	currentTime := time.Now().In(loc)
+	repo.logger.Info("CURRENT TIME: %s", currentTime)
+
 	// Iterate for every days in request to create SummaryResponse
 	for i := 0; i <= request.Days; i++ {
 
 		// Create slice of hour from request. Range value is from 0 - 24.
 		currentAvailability := make([]int, 0)
 		var nowStartHour int
-		currentTime := time.Now()
-		if i == 0 && currentTime.Hour() > request.StartHour {
-			if currentTime.Minute() != 0 && currentTime.Second() != 0 {
-				nowStartHour = currentTime.Hour() + 1
+		if i == 0 {
+			if currentTime.Hour() > request.StartHour {
+				if currentTime.Minute() != 0 && currentTime.Second() != 0 {
+					nowStartHour = currentTime.Hour() + 1
+				} else {
+					nowStartHour = currentTime.Hour()
+				}
 			} else {
-				nowStartHour = currentTime.Hour()
+				nowStartHour = request.StartHour
 			}
 		} else {
 			nowStartHour = request.StartHour
@@ -163,7 +175,7 @@ func (repo *eventRepo) GetUserSummary(request dto.SummaryRequest) ([]dto.Summary
 		sort.Sort(sort.IntSlice(currentAvailability))
 		repo.logger.Info("Succesfully create slice of availability hour from request: %s", currentAvailability)
 
-		currentRequestTime := time.Now().AddDate(0, 0, i)
+		currentRequestTime := currentTime.AddDate(0, 0, i)
 		currentRequestDate := strings.Split(currentRequestTime.String(), " ")[0]
 		var availabilityResult []dto.TimeSpan
 
