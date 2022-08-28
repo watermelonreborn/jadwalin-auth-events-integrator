@@ -235,7 +235,7 @@ func (repo *eventRepo) GetUserSummary(request dto.SummaryRequest) ([]dto.Summary
 		if len(availabilityResult) != 0 {
 			response = append(response, dto.SummaryResponse{
 				Date:         currentRequestDate,
-				Availibility: availabilityResult,
+				Availability: availabilityResult,
 			})
 		}
 		repo.logger.Info("SummaryResponse added: %s", response)
