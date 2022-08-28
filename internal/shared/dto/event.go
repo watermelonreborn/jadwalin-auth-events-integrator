@@ -8,8 +8,8 @@ type SummaryRequest struct {
 }
 
 type SummaryResponse struct {
-	Date         string `json:"date"`
-	Availibility []TimeSpan
+	Date         string     `json:"date"`
+	Availability []TimeSpan `json:"availability"`
 }
 
 type TimeSpan struct {
